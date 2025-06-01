@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Srinivas Concert Fundraising Tracker</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-image: url('background%28jpeg%29.jpeg');
+      background-size: cover;
+      background-position: center;
+      color: white;
+      padding: 20px;
+      max-width: 700px;
+      margin: auto;
+      border-radius: 10px;
+      background-repeat: no-repeat;
+      backdrop-filter: blur(4px);
+    }
+
+    .container {
+      background-color: rgba(0, 0, 0, 0.75);
+      padding: 30px;
+      border-radius: 15px;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .logo {
+      display: block;
+      margin: 0 auto 20px;
+      max-width: 100px;
+    }
+
+    input, button {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      border-radius: 5px;
+      border: none;
+    }
+
+    button {
+      background-color: #a62828;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #861e1e;
+    }
+
+    .progress-container {
+      background-color: #ccc;
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 15px 0;
+    }
+
+    .progress-bar {
+      height: 20px;
+      width: 0%;
+      background-color: #4caf50;
+      text-align: center;
+      color: white;
+      line-height: 20px;
+    }
+
+    table {
+      width: 100%;
+      background-color: #666;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    th, td {
+      padding: 10px;
+      text-align: left;
+      border-bottom: 1px solid #444;
+    }
+
+    .csv-button {
+      background-color: #c14c4c;
+    }
+
+    .note {
+      font-size: 0.9em;
+      color: #ccc;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <img src="logo%20%28jpeg%29.jpeg" class="logo" alt="Concert Logo">
+    <h1>🎵 Srinivas Concert Fundraising Tracker</h1>
+
+    <input type="password" id="adminPassword" placeholder="Enter password to unlock form">
+    <button onclick="unlockForm()">Unlock Form</button>
+    <p id="accessMsg" style="color: lightgreen;"></p>
+
+    <input type="text" id="donorName" placeholder="e.g. ABC Foundation" disabled>
+    <input type="date" id="donationDate" disabled>
+    <input type="number" id="donationAmount" placeholder="e.g. 100000" disabled>
+
+    <button onclick="addDonation()" id="addBtn" disabled>Add Donation</button>
+
+    <div class="progress-container">
+      <div class="progress-bar" id="progressBar">0%</div>
+    </div>
+
+    <p id="raisedText">Raised: LKR 0</p>
+    <p id="remainingText">Remaining: LKR 28,500,000</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Donor</th>
+          <th>Amount (LKR)</th>
+        </tr>
+      </thead>
+      <tbody id="donationTableBody"></tbody>
+    </table>
+  </div>
+
+  <script>
+    const GOAL = 28500000;
+    const API_URL = "https://script.google.com/macros/s/AKfycbwign4oF0oykY4Wf1zcbuebF1ZwN_3rxr7T4JoqsqKg7KAQrO3wA3NhQpnzCz5tIQmp/exec";
+    const ADMIN_PASSWORD = "concert2025";
+
+    async function loadDonations() {
+      try {
+        const res = await fetch(API_URL);
+        const data = await res.json();
+        updateTable(data);
+        updateProgress(data);
+      } catch (err) {
+        alert("Error loading donations.");
+        console.error(err);
+      }
+    }
+
+    function updateProgress(donations) {
+      const total = donations.reduce((sum, d) => sum + parseFloat(d.amount), 0);
+      const percent = ((total / GOAL) * 100).toFixed(1);
+      document.getElementById("progressBar").style.width = percent + "%";
+      document.getElementById("progressBar").textContent = percent + "%";
+      document.getElementById("raisedText").textContent = "Raised: LKR " + total.toLocaleString();
+      document.getElementById("remainingText").textContent = "Remaining: LKR " + (GOAL - total).toLocaleString();
+    }
+
+    function updateTable(donations) {
+      const tbody = document.getElementById("donationTableBody");
+      tbody.innerHTML = "";
+      donations.forEach(d => {
+        const row = `<tr>
+                      <td>${d.date}</td>
+                      <td>${d.name}</td>
+                      <td>${Number(d.amount).toLocaleString()}</td>
+                    </tr>`;
+        tbody.innerHTML += row;
+      });
+    }
+
+    async function addDonation() {
+      const name = document.getElementById("donorName").value;
+      const date = document.getElementById("donationDate").value;
+      const amount = parseFloat(document.getElementById("donationAmount").value);
+
+      if (!name || !date || isNaN(amount)) {
+        alert("Please fill all fields correctly.");
+        return;
+      }
+
+      const donation = { name, date, amount };
+
+      try {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(donation)
+        });
+
+        const responseText = await res.text();
+
+        if (responseText.toLowerCase().includes("success")) {
+          alert("Donation added!");
+          loadDonations();
+          clearForm();
+        } else {
+          alert("Failed to add: " + responseText);
+        }
+      } catch (err) {
+        alert("Failed to send donation: " + err.message);
+        console.error(err);
+      }
+    }
+
+    function unlockForm() {
+      const input = document.getElementById("adminPassword").value;
+      if (input === ADMIN_PASSWORD) {
+        ["donorName", "donationDate", "donationAmount"].forEach(id => {
+          document.getElementById(id).disabled = false;
+        });
+        document.getElementById("addBtn").disabled = false;
+        document.getElementById("accessMsg").textContent = "✅ Form unlocked";
+      } else {
+        alert("Incorrect password.");
+      }
+    }
+
+    function clearForm() {
+      document.getElementById("donorName").value = "";
+      document.getElementById("donationDate").value = "";
+      document.getElementById("donationAmount").value = "";
+    }
+
+    window.onload = loadDonations;
+  </script>
+</body>
+</html>
